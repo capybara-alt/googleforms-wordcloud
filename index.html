@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- d3-cloud -->
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/holtzy/D3-graph-gallery@master/LIB/d3.layout.cloud.js"></script>
+    <script src="https://unpkg.com/react@latest/umd/react.development.js" crossorigin="anonymous"></script>
+    <!-- bootstrap -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base target="_top">
+  </head>
+  <body>
+    <div class="container mt-3 mb-3">
+      <div class="d-flex justify-content-between">
+        <div id="nameSelection" class="dropdown">
+          <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Select item
+          </button>
+          <ul id="selections" class="dropdown-menu">
+          </ul>
+        </div>
+        <div>
+          <button id="download-button" class="btn btn-secondary" type="button" onclick="downloadSvg()"><i class="bi bi-box-arrow-down"></i></button>
+          <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
+            <label class="btn btn-outline-primary" for="btnradio1" onclick="switchViewMode('light')"><i class="bi bi-brightness-high"></i></label>
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+            <label class="btn btn-outline-primary" for="btnradio2" onclick="switchViewMode('dark')"><i class="bi bi-moon"></i></label>
+          </div>
+        </div>
+      </div>
+      <div style="text-align: center;" id="canvas"></div>
+    </div>
+  </body>
+  <script>
+		// Render dropdown list
+    const nameSelection = document.getElementById('nameSelection');
+    const selections = document.getElementById('selections');
+    nameSelection.setAttribute('style', 'visibility: hidden;');
+    google.script.run
+    .withSuccessHandler((names) => {
+      names
+        .map(name => {
+          const selection = document.createElement('li');
+          const button = document.createElement('button');
+          button.setAttribute('type', 'button');
+          button.setAttribute('class', 'dropdown-item');
+          button.innerHTML = name;
+          button.onclick = () => loadWordData(name);
+          selection.appendChild(button);
+          return selection;
+        })
+        .forEach(selection => selections.appendChild(selection));
+      nameSelection.setAttribute('style', 'visibility: visible;');
+    })
+    .withFailureHandler((err) => alert(err))
+    .getItemNames();
+  </script>
+  <script>
+		// Before rendering word cloud
+    const canvas = document.getElementById('canvas');
+    const downloadButton = document.getElementById('download-button');
+    downloadButton.disabled = true;
+
+    var h = 490;
+    var w = 600;
+		// Pre-render word cloud
+    function preRender(words) {
+      canvas.innerHTML = '';
+      d3.layout.cloud()
+      .size([w, h])
+      .words(words)
+      .rotate(() => (~~(Math.random() * 6) - 3) * 30)
+      .font('Impact')
+      .fontSize((d) => d.size)
+      .on('end', renderWordCloud)
+      .start();
+    }
+
+		// Render word cloud data
+    function renderWordCloud(words) {
+      d3.select('#canvas')
+        .append('svg')
+          .attr('class', 'ui fluid image')
+          .attr('viewBox', '0 0 ' + w + ' ' + h )
+          .attr('width', '100%')
+          .attr('height', '100%')
+        .append('g')
+          .attr('transform', 'translate(' + w / 2 + ',' + h / 2 + ')')
+        .selectAll('text')
+          .data(words)
+        .enter().append('text')
+          .style('font-size', (d) => d.size + 'px')
+          .style('font-family', 'Impact')
+          .style('fill', (d, i) => d3.schemeCategory10[i % 10])
+          .attr('text-anchor', 'middle')
+          .attr('transform', (d) => 'translate(' + [d.x, d.y] + ')rotate(' + d.rotate + ')')
+          .text((d) => d.text);
+    }
+
+    function loadWordData(itemName) {
+      canvas.innerHTML = '<div style="height: 490px; width 600px;" class="d-flex align-items-center justify-content-center">'
+      + '<div class="spinner-border text-primary" role="status">'
+      + '<span class="visually-hidden">Loading...</span></div></div>';
+      google.script.run
+      .withSuccessHandler((wordData) => {
+        preRender(wordData);
+        downloadButton.disabled = false;
+      })
+      .withFailureHandler((err) => alert(err))
+      .getWordData(itemName);
+    }
+  </script>
+  <script>
+		// Download word cloud as svg file
+    function downloadSvg() {
+      const svg = document.querySelector('svg');
+      if (svg?.length < 1) {
+        return;
+      }
+      var svgData = svg.outerHTML;
+      var svgBlob = new Blob([svgData], {type:'image/svg+xml;charset=utf-8'});
+      var svgUrl = URL.createObjectURL(svgBlob);
+      var downloadLink = document.createElement('a');
+      downloadLink.href = svgUrl;
+      downloadLink.download = 'wordCloud.svg';
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+  </script>
+  <script>
+    function switchViewMode(mode) {
+      let backgroundColor = mode == 'light' ? '#ffffff' : '#121212';
+      document.body.style.backgroundColor = backgroundColor;
+    }
+  </script>
+</html>
