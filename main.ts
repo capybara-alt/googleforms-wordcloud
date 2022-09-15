@@ -1,23 +1,12 @@
-//  d3-cloud object
-class WordData {
-	text: string = '';
-	size: number = 0;
-
-  constructor(text: string, size: number) {
-    this.text = text;
-    this.size = size;
-  }
-}
-
-function doGet() {
+function doGet(): GoogleAppsScript.HTML.HtmlOutput {
   return HtmlService.createTemplateFromFile("index").evaluate();
 }
 
 // Make word data
-export function getWordData(title: string) {
-  const words = getWords(title);
+function getWordData(title: string): { [key: string]: number | string }[] {
+  const words = getWords(title) as string[];
   const wordData: { [key: string]: number } = {};
-  words.forEach(word => {
+  words.forEach((word: string) => {
     const data = wordData[word];
     const size = !data ? 1 : data + 1;
     wordData[word] = size;
@@ -27,7 +16,7 @@ export function getWordData(title: string) {
 }
 
 // Get words from google forms
-function getWords(title: string) {
+function getWords(title: string): any {
   const form = FormApp.getActiveForm();
   const targetItem = getItemByTitle(title);
   if (!targetItem) {
@@ -35,20 +24,22 @@ function getWords(title: string) {
   }
   
   const responses = form.getResponses();
-  return Array.prototype.concat.apply([], responses.map(response => response.getItemResponses()))
-    .filter(item => item.getItem().getTitle() === targetItem.getTitle())
-    .map(item => item.getResponse());
+  return Array.prototype.concat.apply([], responses
+    .map((response: GoogleAppsScript.Forms.FormResponse) => response.getItemResponses()))
+    .filter((item: GoogleAppsScript.Forms.ItemResponse) => !Array.isArray(item.getResponse()))
+    .filter((item: GoogleAppsScript.Forms.ItemResponse) => item.getItem().getTitle() === targetItem.getTitle())
+    .map((item: GoogleAppsScript.Forms.ItemResponse) => item.getResponse());
 }
 
 // Get item from google forms by title
-function getItemByTitle(title: string) {
+function getItemByTitle(title: string): GoogleAppsScript.Forms.Item | undefined {
   const form = FormApp.getActiveForm();
   const items = form.getItems();
   return items.find(item => item.getTitle() === title);
 }
 
 // Get item names from google forms
-function getItemNames() {
+function getItemNames(): string[] {
   const form = FormApp.getActiveForm();
   return form.getItems().map(item => item.getTitle());
 }
